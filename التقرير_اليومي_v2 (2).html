@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>التقرير اليومي - مجمع العدل</title>
+<link rel="manifest" href="data:application/json,{%22name%22:%22التقرير اليومي%22,%22short_name%22:%22التقرير%22,%22display%22:%22standalone%22,%22background_color%22:%22%230a1628%22,%22theme_color%22:%22%230a1628%22}">
+<meta name="theme-color" content="#0a1628">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Cairo',sans-serif;background:#eef1f5;min-height:100vh;color:#1a2332}
+
+.topbar{background:#0a1628;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:3px solid #c9a84c;flex-wrap:wrap;gap:8px}
+.topbar h1{color:#fff;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.topbar h1 span{color:#c9a84c}
+.fb-status{font-size:.72rem;color:#7a8fa6;display:flex;align-items:center;gap:5px}
+.fb-dot{width:9px;height:9px;border-radius:50%;background:#999;display:inline-block}
+.fb-dot.on{background:#1a7a4a;box-shadow:0 0 6px #1a7a4a}
+.fb-dot.off{background:#c0392b}
+.top-btns{display:flex;gap:8px}
+.tbtn{padding:8px 16px;border-radius:7px;font-family:'Cairo',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;border:none;display:flex;align-items:center;gap:5px;transition:.2s}
+.tbtn-pdf{background:#c9a84c;color:#0a1628}
+.tbtn-pdf:hover{background:#e8c97a}
+.tbtn-print{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.tbtn-print:hover{background:rgba(255,255,255,.2)}
+.tbtn-sync{background:#1a7a4a;color:#fff}
+.tbtn-sync:hover{background:#22965b}
+
+.wrap{max-width:920px;margin:0 auto;padding:20px 16px}
+
+.info-card{background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:end}
+.info-card .fi{display:flex;flex-direction:column;gap:5px}
+.info-card label{font-size:.78rem;font-weight:700;color:#7a8fa6}
+.info-card input{padding:9px 12px;border:1.5px solid #dde3ec;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.92rem;color:#1a2332;background:#fafbfc}
+.info-card input:focus{outline:none;border-color:#c9a84c;background:#fff}
+
+/* SYNC BANNER */
+.sync-banner{background:linear-gradient(90deg,#0a1628,#1e3a5f);border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.sync-banner .sb-txt{color:#fff}
+.sync-banner .sb-txt h3{font-size:.95rem;font-weight:700;display:flex;align-items:center;gap:7px}
+.sync-banner .sb-txt p{font-size:.78rem;color:#a8b8cc;margin-top:3px}
+.sync-banner .sb-date{display:flex;gap:8px;align-items:center}
+.sync-banner .sb-date input{padding:8px 12px;border:none;border-radius:7px;font-family:'Cairo',sans-serif;font-size:.85rem}
+
+.sec{background:#fff;border-radius:12px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);overflow:hidden}
+.sec-head{background:#0a1628;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.sec-head h2{color:#fff;font-size:.95rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.sec-head .head-r{display:flex;gap:6px;align-items:center}
+.badge-sync{background:rgba(26,122,74,.25);color:#5fd99a;font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:10px;display:flex;align-items:center;gap:4px}
+.btn-add{background:#c9a84c;color:#0a1628;border:none;border-radius:6px;padding:6px 14px;font-family:'Cairo',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:.2s}
+.btn-add:hover{background:#e8c97a}
+.sec-body{padding:16px}
+
+.tbl{width:100%;border-collapse:collapse;font-size:.88rem}
+.tbl th{background:#f0f4f8;color:#3a5070;padding:9px 12px;text-align:right;font-weight:700;font-size:.8rem;border-bottom:2px solid #dde3ec}
+.tbl td{padding:8px 10px;border-bottom:1px solid #eef1f5;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td input,.tbl td select{border:1px solid #dde3ec;border-radius:6px;padding:6px 9px;font-family:'Cairo',sans-serif;font-size:.85rem;width:100%;background:#fafbfc;color:#1a2332}
+.tbl td input:focus,.tbl td select:focus{outline:none;border-color:#c9a84c;background:#fff}
+.tbl tr.from-fb td{background:#f3faf6}
+.btn-del{background:none;border:none;cursor:pointer;color:#c0392b;font-size:1.1rem;padding:3px 6px;border-radius:5px;transition:.2s}
+.btn-del:hover{background:#fdedec}
+.col-n{width:36px;text-align:center;color:#aaa;font-weight:700}
+.empty-hint{text-align:center;color:#9aa7b8;font-size:.85rem;padding:18px}
+
+.photo-drop{border:2.5px dashed #c8d5e3;border-radius:10px;padding:28px;text-align:center;background:#f8fafc;cursor:pointer;transition:.2s;margin-bottom:14px}
+.photo-drop:hover,.photo-drop.on{border-color:#c9a84c;background:#fef8ec}
+.photo-drop .ico{font-size:2.2rem;margin-bottom:6px}
+.photo-drop p{color:#7a8fa6;font-size:.88rem}
+.photo-drop strong{color:#c9a84c}
+#photoInput{display:none}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.photo-item{position:relative;border-radius:9px;overflow:hidden;background:#eee;aspect-ratio:4/3;border:2px solid #e0e7ef}
+.photo-item img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-item .vid-th{width:100%;height:100%;background:#112240;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px}
+.photo-item .vid-th .vi{font-size:1.8rem;color:#c9a84c}
+.photo-item .vid-th p{color:#fff;font-size:.72rem;padding:0 5px;text-align:center}
+.photo-item .pdel{position:absolute;top:4px;left:4px;background:rgba(192,57,43,.85);color:#fff;border:none;border-radius:50%;width:24px;height:24px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.photo-item .pcap{position:absolute;bottom:0;right:0;left:0;background:rgba(0,0,0,.6);padding:4px 6px}
+.photo-item .pcap input{background:transparent;border:none;color:#fff;width:100%;font-family:'Cairo',sans-serif;font-size:.75rem}
+.photo-item .pcap input::placeholder{color:rgba(255,255,255,.55)}
+
+.notes-ta{width:100%;padding:12px 14px;border:1.5px solid #dde3ec;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.9rem;resize:vertical;min-height:90px;background:#fafbfc;color:#1a2332}
+.notes-ta:focus{outline:none;border-color:#c9a84c}
+
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:#fff;border-radius:11px;padding:14px 16px;box-shadow:0 2px 12px rgba(0,0,0,.07);border-top:3px solid #c9a84c}
+.kpi .v{font-size:1.7rem;font-weight:900;color:#0a1628}
+.kpi .l{font-size:.74rem;color:#7a8fa6;font-weight:700;margin-top:2px}
+
+.bottom-bar{background:#fff;border-radius:12px;padding:14px 20px;display:flex;gap:10px;justify-content:flex-end;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:30px;flex-wrap:wrap}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#0a1628;color:#fff;padding:12px 22px;border-radius:9px;font-family:'Cairo',sans-serif;font-size:.88rem;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.3);z-index:9999;transition:.3s;border-right:4px solid #c9a84c;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:#1a7a4a}
+.toast.err{border-color:#c0392b}
+
+@media(max-width:600px){
+  .info-card{grid-template-columns:1fr 1fr}
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .topbar h1{font-size:.95rem}
+  .top-btns .tbtn span{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>📋 التقرير <span>اليومي</span> <span style="font-size:.62rem;background:#1a7a4a;color:#fff;padding:2px 7px;border-radius:8px;font-weight:700">v2.3</span></h1>
+    <div class="fb-status"><span class="fb-dot" id="fbDot"></span> <span id="fbTxt">جاري الاتصال بمجمع العدل...</span></div>
+  </div>
+  <div class="top-btns">
+    <button class="tbtn tbtn-print" onclick="doPrint()">🖨 <span>طباعة</span></button>
+    <button class="tbtn tbtn-pdf" onclick="doPDF()">⬇️ <span>PDF</span></button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- INFO -->
+  <div class="info-card">
+    <div class="fi">
+      <label>اسم المشروع</label>
+      <input id="projName" type="text" value="مجمع العدل السكني">
+    </div>
+    <div class="fi">
+      <label>رقم التقرير</label>
+      <input id="repNo" type="text" placeholder="001">
+    </div>
+    <div class="fi">
+      <label>التاريخ</label>
+      <input id="repDate" type="date" onchange="onDateChange()">
+    </div>
+  </div>
+
+  <!-- SYNC BANNER -->
+  <div class="sync-banner">
+    <div class="sb-txt">
+      <h3>🔄 جلب الحضور الشامل من مجمع العدل</h3>
+      <p>يُدرج تلقائياً أعداد العمال والكادر (مهندسين، إداريين، معمل) والآليات حسب النوع لتاريخ التقرير</p>
+    </div>
+    <div class="sb-date">
+      <button class="tbtn tbtn-sync" onclick="syncAttendance()">⬇️ جلب حضور اليوم</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi"><div class="v" id="kpi-w">0</div><div class="l">👷 العمال الحاضرون</div></div>
+    <div class="kpi"><div class="v" id="kpi-e">0</div><div class="l">🚛 الآليات العاملة</div></div>
+    <div class="kpi"><div class="v" id="kpi-k">0</div><div class="l">🏗 بنود الأعمال</div></div>
+    <div class="kpi"><div class="v" id="kpi-p">0</div><div class="l">📷 الصور المرفقة</div></div>
+  </div>
+
+  <!-- WORKERS -->
+  <div class="sec">
+    <div class="sec-head">
+      <h2>👷 العمال</h2>
+      <div class="head-r">
+        <span class="badge-sync" id="badge-w" style="display:none">🔄 <span id="badge-w-n">0</span> من مجمع العدل</span>
+        <button class="btn-add" onclick="addRow('workers')">+ إضافة</button>
+      </div>
+    </div>
+    <div class="sec-body">
+      <table class="tbl">
+        <thead><tr>
+          <th class="col-n">#</th><th>التخصص / الاسم</th>
+          <th style="width:100px">العدد</th><th style="width:120px">الحضور</th>
+          <th>ملاحظة</th><th style="width:36px"></th>
+        </tr></thead>
+        <tbody id="tb-workers"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EQUIPMENT -->
+  <div class="sec">
+    <div class="sec-head">
+      <h2>🚛 الآليات والمعدات</h2>
+      <div class="head-r">
+        <span class="badge-sync" id="badge-e" style="display:none">🔄 <span id="badge-e-n">0</span> من مجمع العدل</span>
+        <button class="btn-add" onclick="addRow('equip')">+ إضافة</button>
+      </div>
+    </div>
+    <div class="sec-body">
+      <table class="tbl">
+        <thead><tr>
+          <th class="col-n">#</th><th>نوع الآلية / المعدة</th>
+          <th style="width:90px">العدد</th><th style="width:130px">الحالة</th>
+          <th>السائق / ملاحظة</th><th style="width:36px"></th>
+        </tr></thead>
+        <tbody id="tb-equip"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- WORK -->
+  <div class="sec">
+    <div class="sec-head">
+      <h2>🏗 الأعمال المنجزة</h2>
+      <button class="btn-add" onclick="addRow('work')">+ إضافة</button>
+    </div>
+    <div class="sec-body">
+      <table class="tbl">
+        <thead><tr>
+          <th class="col-n">#</th><th>وصف العمل</th>
+          <th style="width:130px">الموقع</th><th style="width:110px">الكمية</th>
+          <th style="width:90px">الإنجاز %</th><th style="width:36px"></th>
+        </tr></thead>
+        <tbody id="tb-work"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MATERIALS -->
+  <div class="sec">
+    <div class="sec-head">
+      <h2>🧱 المواد الواردة</h2>
+      <button class="btn-add" onclick="addRow('mats')">+ إضافة</button>
+    </div>
+    <div class="sec-body">
+      <table class="tbl">
+        <thead><tr>
+          <th class="col-n">#</th><th>اسم المادة</th>
+          <th style="width:110px">الكمية</th><th style="width:120px">المورد</th>
+          <th style="width:110px">الحالة</th><th style="width:36px"></th>
+        </tr></thead>
+        <tbody id="tb-mats"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ISSUES -->
+  <div class="sec">
+    <div class="sec-head">
+      <h2>⚠️ الملاحظات والعقبات</h2>
+      <button class="btn-add" onclick="addRow('issues')">+ إضافة</button>
+    </div>
+    <div class="sec-body">
+      <table class="tbl">
+        <thead><tr>
+          <th class="col-n">#</th><th>الملاحظة أو العقبة</th>
+          <th style="width:110px">الأولوية</th><th>الإجراء المتخذ</th>
+          <th style="width:36px"></th>
+        </tr></thead>
+        <tbody id="tb-issues"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PHOTOS -->
+  <div class="sec">
+    <div class="sec-head"><h2>📷 الصور والفيديو</h2></div>
+    <div class="sec-body">
+      <div class="photo-drop" id="dropZone"
+        onclick="document.getElementById('photoInput').click()"
+        ondragover="event.preventDefault();this.classList.add('on')"
+        ondragleave="this.classList.remove('on')"
+        ondrop="onDrop(event)">
+        <div class="ico">📁</div>
+        <p><strong>اضغط لإضافة صور أو فيديو</strong></p>
+        <p>أو اسحب الملفات هنا — يدعم JPG, PNG, MP4</p>
+      </div>
+      <input type="file" id="photoInput" multiple accept="image/*,video/*" onchange="onFiles(this.files)">
+      <div class="photo-grid" id="photoGrid"></div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="sec">
+    <div class="sec-head"><h2>📝 ملاحظات عامة وخطة الغد</h2></div>
+    <div class="sec-body">
+      <textarea class="notes-ta" id="genNotes" placeholder="أكتب هنا أي ملاحظات إضافية أو خطة العمل للغد..."></textarea>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="tbtn tbtn-sync" onclick="syncAttendance()">🔄 جلب الحضور</button>
+    <button class="tbtn tbtn-print" onclick="doPrint()">🖨 طباعة</button>
+    <button class="tbtn tbtn-pdf" onclick="doPDF()">⬇️ تنزيل PDF</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">✅ تم</div>
+
+<script>
+// ════════════ FIREBASE (نفس مشروع مجمع العدل) ════════════
+const FB_CONFIG = {
+  apiKey: "AIzaSyDMYCoW_8FbvgPzkRkD1q9gR_PpadY8vHM",
+  authDomain: "ad1-warehouse.firebaseapp.com",
+  projectId: "ad1-warehouse",
+  storageBucket: "ad1-warehouse.firebasestorage.app",
+  messagingSenderId: "822431724620",
+  appId: "1:822431724620:web:0cc6c5fd2d1b8a9cd670e9"
+};
+let db = null, fbReady = false;
+// بيانات مجمع العدل (نفس بنية النظام الأصلي)
+let fbWorkers = [], fbEquip = [], fbWorkerAtt = {};   // acc/main : w, e, a
+let fbEngineers = [], fbEngAtt = {};                   // eng_att/main
+let fbAdmins = [], fbAdminAtt = {};                    // admin_att/main
+let fbLab = [], fbLabAtt = {};                          // كادر المعمل (concrete)
+let fbLoaded = false;
+
+function initFirebase() {
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    db = firebase.firestore();
+    fbReady = true;
+    setFbStatus('on', 'متصل بمجمع العدل');
+    preloadAllData();
+  } catch(e) {
+    fbReady = false;
+    setFbStatus('off', 'تعذّر الاتصال — وضع محلي');
+  }
+}
+function setFbStatus(cls, txt) {
+  document.getElementById('fbDot').className = 'fb-dot ' + cls;
+  document.getElementById('fbTxt').textContent = txt;
+}
+
+// جلب كل مستندات الحضور من مجمع العدل
+async function preloadAllData() {
+  let ok = 0;
+  try {
+    const s = await db.collection('acc').doc('main').get();
+    if (s.exists) { const d=s.data(); fbWorkers=d.w||[]; fbEquip=d.e||[]; fbWorkerAtt=d.a||{}; ok++; }
+  } catch(e){ console.warn('acc',e); }
+  try {
+    const s = await db.collection('eng_att').doc('main').get();
+    if (s.exists) { const d=s.data(); fbEngineers=d.engineers||[]; fbEngAtt=d.attendance||{}; ok++; }
+  } catch(e){ console.warn('eng',e); }
+  try {
+    const s = await db.collection('admin_att').doc('main').get();
+    if (s.exists) { const d=s.data(); fbAdmins=d.staff||d.admins||[]; fbAdminAtt=d.attendance||{}; ok++; }
+  } catch(e){ console.warn('admin',e); }
+  // كادر المعمل
+  try {
+    const s = await db.collection('concrete').doc('main').get();
+    if (s.exists) { const d=s.data(); fbLab=d.staff||[]; fbLabAtt=d.attendance||d.att||{}; ok++; }
+  } catch(e){ console.warn('lab',e); }
+  fbLoaded = true;
+  if (ok>0) setFbStatus('on', `متصل — ${fbWorkers.length} عامل، ${fbEngineers.length} مهندس، ${fbAdmins.length} إداري`);
+  if (ok===0) loadLocalFallback();
+}
+
+function loadLocalFallback() {
+  try { const r=localStorage.getItem('acc_adl')||localStorage.getItem('acc'); if(r){const d=JSON.parse(r); fbWorkers=d.w||[]; fbEquip=d.e||[]; fbWorkerAtt=d.a||{};} } catch(e){}
+  try { const r=localStorage.getItem('eng_att_adl'); if(r){const d=JSON.parse(r); fbEngineers=d.engineers||[]; fbEngAtt=d.attendance||{};} } catch(e){}
+  try { const r=localStorage.getItem('admin_att_adl'); if(r){const d=JSON.parse(r); fbAdmins=d.staff||d.admins||[]; fbAdminAtt=d.attendance||{};} } catch(e){}
+}
+
+// حالة الحضور: مصفوفة [{id, s, timeIn, timeOut}] حيث s = p/a/h/m
+function getStatusFor(attMap, date, id) {
+  const arr = attMap[date];
+  if (!Array.isArray(arr)) return null;
+  const rec = arr.find(r => r && (r.id == id));
+  return rec ? rec.s : null;
+}
+function isPresent(s){ return s==='p' || s==='h' || s==='m'; }
+function statusLabel(s){ return s==='p'?'حاضر':s==='h'?'مجاز':s==='m'?'مأمور':s==='a'?'غائب':'—'; }
+
+// ════════════ INIT ════════════
+window.onload = () => {
+  const t = new Date();
+  document.getElementById('repDate').value = t.toISOString().split('T')[0];
+  document.getElementById('repNo').value = String(t.getFullYear()).slice(2)+String(t.getMonth()+1).padStart(2,'0')+String(t.getDate()).padStart(2,'0');
+  addRow('workers'); addRow('equip'); addRow('work'); addRow('mats'); addRow('issues');
+  updateKPI();
+  if (window.firebase) initFirebase(); else setFbStatus('off','Firebase غير محمّل');
+};
+
+function onDateChange() {
+  const n = new Date(document.getElementById('repDate').value);
+  if(!isNaN(n)) document.getElementById('repNo').value = String(n.getFullYear()).slice(2)+String(n.getMonth()+1).padStart(2,'0')+String(n.getDate()).padStart(2,'0');
+}
+
+// ════════════ SYNC ATTENDANCE ════════════
+async function syncAttendance() {
+  const date = document.getElementById('repDate').value;
+  if (!date) { toast('❌ حدد تاريخ التقرير أولاً','err'); return; }
+
+  if (fbReady) {
+    toast('⏳ جاري جلب الحضور من مجمع العدل...','');
+    await preloadAllData();
+  } else if (!fbLoaded) {
+    loadLocalFallback();
+  }
+
+  // ── عدّ العمال الحاضرين (بدون أسماء) ──
+  let presentWorkers = 0;
+  fbWorkers.forEach(w => { if (isPresent(getStatusFor(fbWorkerAtt, date, w.id))) presentWorkers++; });
+
+  // ── عدّ المهندسين / الإداريين-مراقبي العمل / كادر المعمل (كلٌّ على حدة) ──
+  let cEng = 0, cAdm = 0, cLab = 0;
+  fbEngineers.forEach(e => { if (isPresent(getStatusFor(fbEngAtt, date, e.id))) cEng++; });
+  fbAdmins.forEach(a => { if (isPresent(getStatusFor(fbAdminAtt, date, a.id))) cAdm++; });
+  fbLab.forEach(s => { if (isPresent(getStatusFor(fbLabAtt, date, s.id))) cLab++; });
+
+  // ── الآليات: حسب النوع، عدد فقط بدون أسماء سائقين ──
+  const equipByType = {};
+  fbEquip.forEach(e => {
+    const s = getStatusFor(fbWorkerAtt, date, e.id) || getStatusFor(fbWorkerAtt, date, 'eq_'+e.id);
+    if (s==='p' || s==='يعمل' || isPresent(s)) {
+      const t = e.type || e.name || 'آلية';
+      equipByType[t] = (equipByType[t]||0) + 1;
+    }
+  });
+
+  const totalFound = presentWorkers + cEng + cAdm + cLab + Object.keys(equipByType).length;
+  let usedRoster = false;
+
+  // لا حضور مسجّل → استخدم القائمة الكاملة
+  if (totalFound === 0) {
+    usedRoster = true;
+    presentWorkers = fbWorkers.length;
+    cEng = fbEngineers.length; cAdm = fbAdmins.length; cLab = fbLab.length;
+    fbEquip.forEach(e => { const t=e.type||e.name||'آلية'; equipByType[t]=(equipByType[t]||0)+1; });
+    if (presentWorkers===0 && cEng===0 && cAdm===0 && cLab===0 && !Object.keys(equipByType).length) {
+      toast('⚠️ لا توجد بيانات حضور — تأكد من الاتصال وقواعد Firestore','err'); return;
+    }
+  }
+
+  // ── مسح أي صفوف سابقة مجلوبة من مجمع العدل ──
+  removeFbRows('workers'); removeFbRows('equip');
+
+  // ── إدراج العمال: صف واحد "عمال الشركة" بالعدد ──
+  if (presentWorkers > 0) {
+    addRow('workers', { sp:'عمال الشركة', cnt:presentWorkers, att:'حاضر', nt:'', fb:true });
+  }
+  // ── إدراج الكادر: صف واحد لكل فئة بالعدد فقط ──
+  if (cEng > 0) addRow('workers', { sp:'المهندسون', cnt:cEng, att:'حاضر', nt:'كادر', fb:true });
+  if (cAdm > 0) addRow('workers', { sp:'الإداريون ومراقبو العمل', cnt:cAdm, att:'حاضر', nt:'كادر', fb:true });
+  if (cLab > 0) addRow('workers', { sp:'كادر المعمل', cnt:cLab, att:'حاضر', nt:'كادر', fb:true });
+
+  // ── إدراج الآليات: نوع + عدد فقط ──
+  Object.keys(equipByType).forEach(t => {
+    addRow('equip', { tp:t, qt:equipByType[t], st:'يعمل', nt:'', fb:true });
+  });
+
+  cleanEmptyRows('workers'); cleanEmptyRows('equip');
+  updateKPI(); updateBadges();
+
+  const totW = presentWorkers + cEng + cAdm + cLab;
+  if (usedRoster) toast(`⚠️ لا حضور مسجّل لهذا التاريخ — أُدرجت القائمة الكاملة (${totW} كادر، ${Object.keys(equipByType).length} نوع آلية)`,'');
+  else toast(`✅ تم جلب الحضور: ${totW} كادر و ${Object.keys(equipByType).length} نوع آلية`,'ok');
+}
+
+function removeFbRows(type) {
+  const tb = document.getElementById('tb-'+type);
+  Array.from(tb.querySelectorAll('tr.from-fb')).forEach(r=>r.remove());
+  renumber(tb);
+}
+
+function cleanEmptyRows(type) {
+  const tb = document.getElementById('tb-'+type);
+  Array.from(tb.rows).forEach(r=>{
+    const inps = r.querySelectorAll('input[type=text]');
+    const allEmpty = Array.from(inps).every(i=>!i.value.trim());
+    const isFb = r.classList.contains('from-fb');
+    if (allEmpty && !isFb && tb.rows.length>1) r.remove();
+  });
+  renumber(tb);
+}
+
+function updateBadges() {
+  ['workers','equip'].forEach(type=>{
+    const fbCount = document.querySelectorAll('#tb-'+type+' tr.from-fb').length;
+    const badge = document.getElementById('badge-'+(type==='workers'?'w':'e'));
+    if (fbCount>0) { badge.style.display='flex'; document.getElementById('badge-'+(type==='workers'?'w':'e')+'-n').textContent=fbCount; }
+    else badge.style.display='none';
+  });
+}
+
+// ════════════ ROWS ════════════
+function rowHtml(type, d) {
+  d = d || {};
+  const inp = (cls,ph,val='') => `<input type="text" class="${cls}" placeholder="${ph}" value="${val||''}">`;
+  const sel = (cls,sv,...opts) => `<select class="${cls}">${opts.map(o=>`<option ${o===sv?'selected':''}>${o}</option>`).join('')}</select>`;
+  const num = (cls,v) => `<input type="number" min="0" value="${v||0}" class="${cls}" style="width:70px;text-align:center">`;
+  const del = `<td><button class="btn-del" onclick="delRow(this)">🗑</button></td>`;
+
+  if (type==='workers') return `<td class="col-n">1</td>
+    <td>${inp('w-sp','بناء / حداد / نجار...',d.sp)}</td><td>${num('w-cnt',d.cnt)}</td>
+    <td>${sel('w-att',d.att||'حاضر','حاضر','غائب','إجازة')}</td>
+    <td>${inp('w-nt','ملاحظة...',d.nt)}</td>${del}`;
+  if (type==='equip') return `<td class="col-n">1</td>
+    <td>${inp('e-tp','حفارة / لودر / خلاطة...',d.tp)}</td><td>${num('e-qt',d.qt||1)}</td>
+    <td>${sel('e-st',d.st||'يعمل','يعمل','متوقف للصيانة','معطل','خارج الموقع')}</td>
+    <td>${inp('e-nt','السائق / ملاحظة...',d.nt)}</td>${del}`;
+  if (type==='work') return `<td class="col-n">1</td>
+    <td>${inp('k-ds','وصف العمل المنجز...',d.ds)}</td><td>${inp('k-lc','القطعة / المنطقة...',d.lc)}</td>
+    <td>${inp('k-qt','مثال: 20 م³',d.qt)}</td>
+    <td><input type="number" min="0" max="100" value="${d.pg||0}" class="k-pg" style="width:60px;text-align:center"> %</td>${del}`;
+  if (type==='mats') return `<td class="col-n">1</td>
+    <td>${inp('m-nm','خرسانة / حديد / طوب...',d.nm)}</td><td>${inp('m-qt','مثال: 10 طن',d.qt)}</td>
+    <td>${inp('m-sp','اسم المورد',d.sp)}</td>
+    <td>${sel('m-st',d.st||'مقبول','مقبول','مرفوض','قيد الفحص')}</td>${del}`;
+  if (type==='issues') return `<td class="col-n">1</td>
+    <td>${inp('i-ds','وصف الملاحظة أو العقبة...',d.ds)}</td>
+    <td>${sel('i-pr',d.pr||'🟠 متوسطة','🔴 عالية','🟠 متوسطة','🟢 منخفضة')}</td>
+    <td>${inp('i-ac','الإجراء المتخذ...',d.ac)}</td>${del}`;
+}
+
+function addRow(type, data) {
+  const tb = document.getElementById('tb-'+type);
+  const tr = document.createElement('tr');
+  if (data && data.fb) tr.classList.add('from-fb');
+  tr.innerHTML = rowHtml(type, data);
+  tb.appendChild(tr);
+  renumber(tb);
+  // attach KPI listeners
+  tr.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',updateKPI));
+  if (!data) { const f=tr.querySelector('input,select'); if(f) f.focus(); }
+  updateKPI();
+}
+
+function delRow(btn) {
+  const tr = btn.closest('tr'), tb = tr.closest('tbody');
+  tr.remove(); renumber(tb); updateKPI(); updateBadges();
+}
+function renumber(tb) {
+  Array.from(tb.rows).forEach((r,i)=>{ if(r.cells[0]) r.cells[0].textContent=i+1; });
+}
+
+// ════════════ KPI ════════════
+function updateKPI() {
+  const wT = Array.from(document.querySelectorAll('.w-cnt')).reduce((s,i)=>s+Number(i.value||0),0);
+  const eT = Array.from(document.querySelectorAll('.e-qt')).reduce((s,i)=>s+Number(i.value||0),0);
+  const kT = Array.from(document.querySelectorAll('.k-ds')).filter(i=>i.value.trim()).length;
+  document.getElementById('kpi-w').textContent = wT;
+  document.getElementById('kpi-e').textContent = eT;
+  document.getElementById('kpi-k').textContent = kT;
+  document.getElementById('kpi-p').textContent = media.filter(m=>m.type==='image').length;
+}
+
+// ════════════ MEDIA ════════════
+let media = [];
+function onDrop(e){ e.preventDefault(); document.getElementById('dropZone').classList.remove('on'); onFiles(e.dataTransfer.files); }
+function onFiles(files){
+  Array.from(files).forEach(f=>{
+    const r=new FileReader();
+    r.onload=ev=>{ media.push({dataUrl:ev.target.result,type:f.type.startsWith('video')?'video':'image',name:f.name,caption:''}); renderMedia(); updateKPI(); };
+    r.readAsDataURL(f);
+  });
+}
+function renderMedia(){
+  const g=document.getElementById('photoGrid'); g.innerHTML='';
+  media.forEach((m,i)=>{
+    const d=document.createElement('div'); d.className='photo-item';
+    if(m.type==='image') d.innerHTML=`<img src="${m.dataUrl}"><button class="pdel" onclick="delMedia(${i})">✕</button><div class="pcap"><input placeholder="وصف الصورة..." value="${m.caption}" onchange="media[${i}].caption=this.value"></div>`;
+    else d.innerHTML=`<div class="vid-th"><div class="vi">▶️</div><p>${m.name}</p></div><button class="pdel" onclick="delMedia(${i})">✕</button><div class="pcap"><input placeholder="وصف الفيديو..." value="${m.caption}" onchange="media[${i}].caption=this.value"></div>`;
+    g.appendChild(d);
+  });
+}
+function delMedia(i){ media.splice(i,1); renderMedia(); updateKPI(); }
+
+// ════════════ COLLECT ════════════
+function v(tr,sel){ const el=tr.querySelector(sel); return el?el.value:''; }
+function collect() {
+  const g=(type,fn)=>{ const a=[]; document.querySelectorAll('#tb-'+type+' tr').forEach((tr,i)=>a.push(fn(tr,i))); return a; };
+  return {
+    proj: document.getElementById('projName').value||'المشروع',
+    no: document.getElementById('repNo').value||'001',
+    date: document.getElementById('repDate').value||'',
+    notes: document.getElementById('genNotes').value||'',
+    workers: g('workers',tr=>({sp:v(tr,'.w-sp'),cnt:v(tr,'.w-cnt'),att:v(tr,'.w-att'),nt:v(tr,'.w-nt')})),
+    equip: g('equip',tr=>({tp:v(tr,'.e-tp'),qt:v(tr,'.e-qt'),st:v(tr,'.e-st'),nt:v(tr,'.e-nt')})),
+    work: g('work',tr=>({ds:v(tr,'.k-ds'),lc:v(tr,'.k-lc'),qt:v(tr,'.k-qt'),pg:v(tr,'.k-pg')})),
+    mats: g('mats',tr=>({nm:v(tr,'.m-nm'),qt:v(tr,'.m-qt'),sp:v(tr,'.m-sp'),st:v(tr,'.m-st')})),
+    issues: g('issues',tr=>({ds:v(tr,'.i-ds'),pr:v(tr,'.i-pr'),ac:v(tr,'.i-ac')}))
+  };
+}
+
+// ════════════ BUILD REPORT ════════════
+function buildHTML(d) {
+  const dateStr = d.date ? new Date(d.date).toLocaleDateString('ar-IQ',{weekday:'long',year:'numeric',month:'long',day:'numeric'}):'';
+  const wTotal = d.workers.reduce((s,w)=>s+Number(w.cnt||0),0);
+  const eTotal = d.equip.reduce((s,e)=>s+Number(e.qt||0),0);
+  const tblRows=(rows,cols)=>rows.filter(r=>Object.values(r).some(x=>x&&x!=='0')).map((r,i)=>`<tr>${cols(r,i).map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
+  const wRows=tblRows(d.workers,(r,i)=>[i+1,r.sp||'—',r.cnt||0,r.att,r.nt||'—']);
+  const eRows=tblRows(d.equip,(r,i)=>[i+1,r.tp||'—',r.qt||0,r.st,r.nt||'—']);
+  const kRows=tblRows(d.work,(r,i)=>[i+1,r.ds||'—',r.lc||'—',r.qt||'—',`<b style="color:#1a7a4a">${r.pg||0}%</b>`]);
+  const mRows=tblRows(d.mats,(r,i)=>[i+1,r.nm||'—',r.qt||'—',r.sp||'—',`<span style="padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;background:${r.st==='مقبول'?'#eafaf1':r.st==='مرفوض'?'#fdedec':'#fef9e7'};color:${r.st==='مقبول'?'#1a7a4a':r.st==='مرفوض'?'#c0392b':'#d68910'}">${r.st}</span>`]);
+  const iRows=tblRows(d.issues,(r,i)=>[i+1,r.ds||'—',`<span style="padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;background:${r.pr.includes('عالية')?'#fdedec':r.pr.includes('متوسطة')?'#fef9e7':'#eafaf1'};color:${r.pr.includes('عالية')?'#c0392b':r.pr.includes('متوسطة')?'#d68910':'#1a7a4a'}">${r.pr}</span>`,r.ac||'—']);
+  const photos=media.filter(m=>m.type==='image').slice(0,9).map(m=>`<div style="break-inside:avoid"><img src="${m.dataUrl}" style="width:100%;border-radius:7px;aspect-ratio:4/3;object-fit:cover;display:block">${m.caption?`<p style="font-size:.7rem;color:#7a8fa6;text-align:center;margin-top:4px">${m.caption}</p>`:''}</div>`).join('');
+  const videos=media.filter(m=>m.type==='video').map((m,i)=>`<div style="background:#f8fafc;border:1px solid #e0e7ef;border-radius:7px;padding:9px 12px;display:flex;align-items:center;gap:9px;margin-bottom:7px"><span style="font-size:1.3rem">🎬</span><div><div style="font-size:.82rem;font-weight:700;color:#0a1628">فيديو ${i+1}${m.caption?' — '+m.caption:''}</div><div style="font-size:.72rem;color:#7a8fa6">${m.name}</div></div></div>`).join('');
+  const sec=(t,c)=>c.trim()?`<div style="margin-bottom:18px;break-inside:avoid"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.8rem;font-weight:800;color:#0a1628;letter-spacing:.4px">${t}<div style="flex:1;height:2px;background:linear-gradient(90deg,#c9a84c,transparent)"></div></div>${c}</div>`:'';
+  const tbl=(h,r)=>!r?'':`<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr>${h.map(x=>`<th style="background:#0a1628;color:#fff;padding:7px 10px;text-align:right;font-weight:700">${x}</th>`).join('')}</tr></thead><tbody>${r}</tbody></table>`;
+
+  return `<div style="width:794px;padding:36px 44px;background:#fff;font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#1a2332;position:relative">
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:90pt;font-weight:900;color:rgba(10,22,40,.04);white-space:nowrap;z-index:0;pointer-events:none">تقرير يومي</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #0a1628;padding-bottom:14px;margin-bottom:14px;position:relative;z-index:1">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:54px;height:54px;background:linear-gradient(135deg,#0a1628,#1e3a5f);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#c9a84c">📋</div>
+        <div><div style="font-size:1.15rem;font-weight:900;color:#0a1628">${d.proj}</div><div style="font-size:.75rem;color:#7a8fa6;margin-top:2px">تقرير يومي رسمي</div></div>
+      </div>
+      <div style="text-align:left"><div style="font-size:.95rem;font-weight:700;color:#0a1628">${dateStr}</div><div style="font-size:.75rem;color:#7a8fa6;margin-top:3px">رقم التقرير: ${d.no}</div><div style="margin-top:6px;display:inline-block;padding:3px 12px;border-radius:20px;font-size:.72rem;font-weight:700;background:linear-gradient(90deg,#c9a84c,#e8c97a);color:#0a1628">وثيقة رسمية</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:18px;position:relative;z-index:1">
+      ${[['👷 إجمالي العمال',wTotal],['🚛 الآليات',eTotal],['🏗 بنود الأعمال',d.work.filter(w=>w.ds).length],['📷 الصور',media.filter(m=>m.type==='image').length]].map(([l,v])=>`<div style="flex:1;background:#f8fafc;border-radius:8px;padding:11px 13px;border-top:3px solid #c9a84c"><div style="font-size:1.6rem;font-weight:900;color:#0a1628">${v}</div><div style="font-size:.7rem;color:#7a8fa6;font-weight:700;margin-top:2px">${l}</div></div>`).join('')}
+    </div>
+    <div style="position:relative;z-index:1">
+    ${wRows?sec('👷 العمال',tbl(['#','التخصص','العدد','الحضور','ملاحظة'],wRows)):''}
+    ${eRows?sec('🚛 الآليات والمعدات',tbl(['#','النوع','العدد','الحالة','ملاحظة'],eRows)):''}
+    ${kRows?sec('🏗 الأعمال المنجزة',tbl(['#','وصف العمل','الموقع','الكمية','الإنجاز'],kRows)):''}
+    ${mRows?sec('🧱 المواد الواردة',tbl(['#','المادة','الكمية','المورد','الحالة'],mRows)):''}
+    ${iRows?sec('⚠️ الملاحظات والعقبات',tbl(['#','الملاحظة','الأولوية','الإجراء'],iRows)):''}
+    ${photos?sec('📷 توثيق الأعمال بالصور',`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">${photos}</div>`):''}
+    ${videos?sec('🎬 الفيديوهات',videos):''}
+    ${d.notes?sec('📝 ملاحظات وخطة الغد',`<div style="background:#fef8ec;border-right:4px solid #c9a84c;border-radius:0 8px 8px 0;padding:12px 14px;font-size:.85rem;line-height:1.9">${d.notes}</div>`):''}
+    <div style="margin-top:28px;border-top:2px solid #0a1628;padding-top:14px"><div style="display:flex;gap:30px;justify-content:center">${['المشرف الميداني','المهندس المسؤول','اعتماد المراقب'].map(s=>`<div style="text-align:center"><div style="border-top:1.5px solid #0a1628;width:130px;margin:28px auto 6px"></div><div style="font-size:.76rem;font-weight:700;color:#0a1628">${s}</div></div>`).join('')}</div></div>
+    <div style="margin-top:20px;border-top:1px solid #dde3ec;padding-top:12px;display:flex;justify-content:space-between;font-size:.7rem;color:#7a8fa6"><div>📋 ${d.proj}</div><div>رقم: ${d.no} | ${d.date}</div><div>وثيقة داخلية سرية</div></div>
+    </div></div>`;
+}
+
+// ════════════ PRINT ════════════
+function doPrint() {
+  const html = buildHTML(collect());
+  const content = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff;font-family:'Cairo',Arial,sans-serif}@media print{body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}</style></head><body>${html}</body></html>`;
+  const blob = new Blob([content],{type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url,'_blank');
+  if(!w){ toast('❌ اسمح بالنوافذ المنبثقة','err'); return; }
+  w.addEventListener('load',()=>{ w.focus(); w.print(); URL.revokeObjectURL(url); });
+}
+
+// ════════════ PDF ════════════
+async function doPDF() {
+  toast('⏳ جاري إنشاء PDF...','');
+  const html = buildHTML(collect());
+  const el = document.createElement('div');
+  el.style.cssText='position:fixed;left:-9999px;top:0;width:794px;background:#fff';
+  el.innerHTML = `<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">${html}`;
+  document.body.appendChild(el);
+  await new Promise(r=>setTimeout(r,600));
+  try {
+    const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#fff',width:794,windowWidth:794});
+    const img=canvas.toDataURL('image/jpeg',.95);
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+    const ih=canvas.height*pw/canvas.width;
+    let y=0,rem=ih,pg=0;
+    while(rem>0){ if(pg>0)pdf.addPage(); pdf.addImage(img,'JPEG',0,-y,pw,ih); y+=ph; rem-=ph; pg++; }
+    const d=collect();
+    pdf.save(`تقرير_${d.no}_${d.date||'report'}.pdf`);
+    toast('✅ تم تنزيل PDF بنجاح','ok');
+  } catch(e){ toast('❌ فشل إنشاء PDF','err'); }
+  document.body.removeChild(el);
+}
+
+// ════════════ TOAST ════════════
+function toast(msg,cls){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+cls+' show';
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+</script>
+</body>
+</html>
